@@ -11,9 +11,14 @@
 
 
     <ItemGroup>
-        <PackageReference Include="CommandLineParser" Version="2.9.1" />
+        <PackageReference Include="CommandLineParser" Version="2.9.1"/>
         <PackageReference Include="KirisameLib.Core" Version="0.1.2"/>
         <PackageReference Include="Veldrid" Version="4.9.0"/>
+        <PackageReference Include="Veldrid.SPIRV" Version="1.0.15" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <EmbeddedResource Include="Resources\Shaders\*.glsl"/>
     </ItemGroup>
 
 </Project>

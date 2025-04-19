@@ -6,9 +6,10 @@ using CommandLine;
 using CommandLine.Text;
 
 using McmodIconGenSharp;
+using McmodIconGenSharp.Resources;
 
-using Microsoft.VisualBasic;
 
+//
 
 #region Parse Args
 
@@ -42,11 +43,16 @@ Console.WriteLine(headInfo);
 
 Console.WriteLine(runArgs);
 
+#if DEBUG
 if (runArgs.Test)
 {
-
+    Console.WriteLine("--test--");
+    var shader = Resources.GetShader("test");
+    Console.WriteLine(shader);
+    Console.WriteLine("--test--");
     return 0;
 }
+#endif
 
 var inputPath = runArgs.InputPath;
 if (File.Exists(inputPath))
