@@ -41,9 +41,6 @@ public sealed class MigEnvironment : IDisposable
             Encoding.UTF8.GetBytes(Resources.Resources.GetShader("fragment")!),
             "main");
         _shaders = factory.CreateFromSpirv(vertexShaderDesc, fragmentShaderDesc);
-        _vertexBuffer = factory.CreateBuffer(new BufferDescription(VertexBufferByteSize, BufferUsage.VertexBuffer));
-        _indexBuffer = factory.CreateBuffer(new BufferDescription(IndexBufferByteSize,   BufferUsage.IndexBuffer));
-        _commandList = _graphicsDevice.ResourceFactory.CreateCommandList();
         _pipeline = _graphicsDevice.ResourceFactory.CreateGraphicsPipeline(new GraphicsPipelineDescription
         {
             BlendState = BlendStateDescription.SingleOverrideBlend,
@@ -85,16 +82,7 @@ public sealed class MigEnvironment : IDisposable
         if (Disposed) return;
         Disposed = true;
 
-        foreach (var (gpuTexture, buffer, stagingTexture) in _buffers.Values)
-        {
-            stagingTexture.Dispose();
-            buffer.Dispose();
-            gpuTexture.Dispose();
-        }
         _pipeline.Dispose();
-        _commandList.Dispose();
-        _vertexBuffer.Dispose();
-        _indexBuffer.Dispose();
         _shaders.ForEach(s => s.Dispose());
         _graphicsDevice.Dispose();
     }
@@ -106,10 +94,7 @@ public sealed class MigEnvironment : IDisposable
 
     private readonly GraphicsDevice _graphicsDevice;
     private readonly Shader[] _shaders;
-    private readonly DeviceBuffer _vertexBuffer, _indexBuffer;
-    private readonly CommandList _commandList;
     private readonly Pipeline _pipeline;
-    private readonly Dictionary<(uint x, uint y), (Texture gpuTexture, Framebuffer buffer, Texture stagingTexture)> _buffers = new();
 
     #endregion
 }

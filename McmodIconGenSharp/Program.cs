@@ -18,7 +18,7 @@ var headInfo = new StringBuilder()
               .AppendLine()
               .AppendLine(CopyrightInfo.Default)
               .AppendLine()
-              .AppendLine("Tool for Mcmod style icon generation")
+              .AppendLine("Yet another tool for Mcmod style icon generation")
               .AppendLine("see https://github.com/KirisameY/McmodIconGenSharp for more info")
               .ToString();
 
