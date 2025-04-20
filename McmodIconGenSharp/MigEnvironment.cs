@@ -62,7 +62,7 @@ public sealed class MigEnvironment : IDisposable
             PrimitiveTopology = PrimitiveTopology.TriangleList,
             RasterizerState = RasterizerStateDescription.Default,
             ResourceBindingModel = null, // inherited from GraphicsDevice
-            ResourceLayouts = [],
+            ResourceLayouts = [],        // todo
             ShaderSet = new ShaderSetDescription
             {
                 VertexLayouts =
