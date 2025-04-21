@@ -14,6 +14,9 @@ public record ModelInfo(ImmutableArray<CubeInfo> Cubes);
 
 public record CubeInfo(Vector3 Size, Matrix4x4 Transform, Faces<Vector4> UVs, Faces<byte> TextureIndexes)
 {
+    // ushort 's max length divided vertex count of cube(8)
+    public const uint MaxCubeAmount = 8192;
+
     private static readonly Faces<Vector3> Normals = new()
     {
         West   = new Vector3(-1, 0,  0),
@@ -27,8 +30,8 @@ public record CubeInfo(Vector3 Size, Matrix4x4 Transform, Faces<Vector4> UVs, Fa
     private static class Vertex
     {
         // ReSharper disable InconsistentNaming
-        public const byte E = 0b001, T = 0b010, S = 0b100; //三个轴向
-        public const byte WBN = 0b000, EBN = 0b001,        //八个顶点
+        public const byte E = 0b001, T = 0b010, S = 0b100; // positive direction of 3 axis
+        public const byte WBN = 0b000, EBN = 0b001,        // all vertices of cube
                           WTN = 0b010, ETN = 0b011,
                           WBS = 0b100, EBS = 0b101,
                           WTS = 0b110, ETS = 0b111;
@@ -100,9 +103,9 @@ public record CubeInfo(Vector3 Size, Matrix4x4 Transform, Faces<Vector4> UVs, Fa
         return results.ToImmutableArray();
     }
 
-    public static ushort[] GetIndices(ushort cubeOrdinal)
+    public static ImmutableArray<ushort> GetIndices(ushort cubeOrdinal)
     {
-        if (cubeOrdinal >= 8192)
+        if (cubeOrdinal >= MaxCubeAmount)
         {
             Console.Error.WriteLine("Cube ordinal out of range! Exceeded cube will not be rendered!");
             return [];
@@ -111,6 +114,7 @@ public record CubeInfo(Vector3 Size, Matrix4x4 Transform, Faces<Vector4> UVs, Fa
         var offsetValue = (ushort)(cubeOrdinal * 8);
         // ReSharper disable once ConvertToLocalFunction
         Func<ushort, ushort> offset = v => (ushort)(offsetValue + v);
+
         return
         [
             // West face
