@@ -1,4 +1,4 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Collections.Concurrent;
 using System.Text;
 
 using KirisameLib.Extensions;
@@ -11,6 +11,10 @@ using Veldrid.SPIRV;
 
 namespace McmodIconGenSharp.Rendering;
 
+/// <summary>
+/// Working environment of 3d rendering, is not async-safe. <br/>
+/// (Actually, nothing in <c> McmodIconGenSharp.Rendering </c> is async-safe)
+/// </summary>
 public sealed class MigEnvironment : IDisposable
 {
     #region Constants
@@ -29,12 +33,21 @@ public sealed class MigEnvironment : IDisposable
 
     public MigEnvironment()
     {
-        GraphicsDevice = GraphicsDevice.CreateVulkan(new GraphicsDeviceOptions
-        {
-            PreferDepthRangeZeroToOne         = true,
-            PreferStandardClipSpaceYDirection = false,
-            ResourceBindingModel              = ResourceBindingModel.Improved,
-        });
+        GraphicsDevice = GraphicsDevice.CreateVulkan(
+            new GraphicsDeviceOptions
+            (
+                swapchainDepthFormat: null,
+            #if DEBUG
+                debug: true,
+            #else
+                debug: false,
+            #endif
+                syncToVerticalBlank: false,
+                resourceBindingModel: ResourceBindingModel.Improved,
+                preferDepthRangeZeroToOne: true,
+                preferStandardClipSpaceYDirection: false
+            )
+        );
         var factory = GraphicsDevice.ResourceFactory;
         ShaderDescription vertexShaderDesc = new ShaderDescription(
             ShaderStages.Vertex,
@@ -105,7 +118,21 @@ public sealed class MigEnvironment : IDisposable
         if (Disposed) return;
         Disposed = true;
 
+        _texturesCache.Values.Flatten().ForEach(t =>
+        {
+            t.view.Dispose();
+            t.tex.Dispose();
+        });
+        _outputBuffers.Values.ForEach(t =>
+        {
+            t.buf.Dispose();
+            t.color.Dispose();
+            t.depth.Dispose();
+        });
+
         _pipeline.Dispose();
+        _vsUniformBuffer.Dispose();
+        _fsUniformBuffer.Dispose();
         _vertexBuffer.Dispose();
         _indexBuffer.Dispose();
         _shaders.ForEach(s => s.Dispose());
@@ -123,10 +150,85 @@ public sealed class MigEnvironment : IDisposable
     private readonly DeviceBuffer _vsUniformBuffer, _fsUniformBuffer;
     private readonly Pipeline _pipeline;
 
+    private readonly Dictionary<(uint, uint), ConcurrentBag<(Texture tex, TextureView view)>> _texturesCache = new();
+    private readonly Dictionary<(uint, uint), (Texture color, Texture depth, Framebuffer buf)> _outputBuffers = new();
+
     #endregion
 
 
-    #region Public Methods
+    #region In/Out Textures
+
+    internal BorrowRes<TextureView> GetTexture(uint width, uint height, ReadOnlySpan<byte> rgba)
+    {
+        if (!_texturesCache.TryGetValue((width, height), out var textureBag))
+            _texturesCache[(width, height)] = textureBag = new();
+
+        if (!textureBag.TryTake(out var tex))
+        {
+            var texDescription = new TextureDescription
+            {
+                Width       = width,
+                Height      = height,
+                Depth       = 1,
+                MipLevels   = 1,
+                ArrayLayers = 1,
+                Format      = ColorFormat,
+                SampleCount = SampleCount,
+                Type        = TextureType.Texture2D,
+                Usage       = TextureUsage.Sampled,
+            };
+            var texture = GraphicsDevice.ResourceFactory.CreateTexture(texDescription);
+            var view = GraphicsDevice.ResourceFactory.CreateTextureView(texture);
+            tex = (texture, view);
+        }
+
+        GraphicsDevice.UpdateTexture(tex.tex, rgba, 0, 0, 0, width, height, 1, 0, 0);
+        return new(tex.view, () => textureBag.Add(tex));
+    }
+
+    internal Framebuffer GetFramebuffer(uint width, uint height)
+    {
+        if (!_outputBuffers.TryGetValue((width, height), out var frame))
+        {
+            var colorTexDescription = new TextureDescription
+            {
+                Width       = width,
+                Height      = height,
+                Depth       = 1,
+                MipLevels   = 1,
+                ArrayLayers = 1,
+                Format      = ColorFormat,
+                SampleCount = SampleCount,
+                Type        = TextureType.Texture2D,
+                Usage       = TextureUsage.RenderTarget,
+            };
+            var depthTexDescription = colorTexDescription with
+            {
+                Format = DepthFormat,
+                Usage = TextureUsage.DepthStencil
+            };
+
+            var colorTex = GraphicsDevice.ResourceFactory.CreateTexture(colorTexDescription);
+            var depthTex = GraphicsDevice.ResourceFactory.CreateTexture(depthTexDescription);
+
+            var buffer = GraphicsDevice.ResourceFactory.CreateFramebuffer(new FramebufferDescription
+            {
+                ColorTargets = [new FramebufferAttachmentDescription(colorTex, 0)],
+                DepthTarget  = new FramebufferAttachmentDescription(depthTex, 0),
+            });
+
+            _outputBuffers[(width, height)] = (colorTex, depthTex, buffer);
+        }
+
+        return frame.buf;
+    }
+
+    #endregion
+
+
+    #region Batch
+
+    public RenderBatch CurrentBatch { get; private set; }
 
     public RenderBatch CreateRenderBatch()
     {

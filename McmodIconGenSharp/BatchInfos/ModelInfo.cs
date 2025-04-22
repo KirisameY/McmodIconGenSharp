@@ -41,7 +41,7 @@ public record CubeInfo(Vector3 Size, Matrix4x4 Transform, Faces<Vector4> UVs, Fa
         // ReSharper restore InconsistentNaming
     }
 
-    public ImmutableArray<VertexInfo> GetVertexes()
+    internal ImmutableArray<VertexInfo> GetVertexes()
     {
         Span<Vector3> vertices = stackalloc Vector3[8];
         var halfSize = Size / 2;
@@ -103,7 +103,7 @@ public record CubeInfo(Vector3 Size, Matrix4x4 Transform, Faces<Vector4> UVs, Fa
         return results.ToImmutableArray();
     }
 
-    public static ImmutableArray<ushort> GetIndices(ushort cubeOrdinal)
+    internal static ImmutableArray<ushort> GetIndices(ushort cubeOrdinal)
     {
         if (cubeOrdinal >= MaxCubeAmount)
         {

@@ -6,23 +6,28 @@ namespace McmodIconGenSharp.Rendering;
 
 public class RenderBatch : IDisposable
 {
-    public RenderBatch(MigEnvironment environment, ModelInfo modelInfo, SpaceInfo spaceInfo, TargetInfo targetInfo)
+    #region Init&Cleanup
+
+    internal RenderBatch(MigEnvironment environment, ModelInfo modelInfo, SpaceInfo spaceInfo, TargetInfo targetInfo)
     {
         Environment = environment;
         var factory = Environment.GraphicsDevice.ResourceFactory;
     }
 
+    public bool Disposed { get; private set; } = false;
+
     public void Dispose()
     {
-        _pipeline.Dispose();
+        if (Disposed) return;
+        Disposed = true;
     }
 
+    #endregion
 
-    #region Environment Settings
+
+    #region Resources
 
     public MigEnvironment Environment { get; }
-
-    private Pipeline _pipeline;
 
     #endregion
 }
