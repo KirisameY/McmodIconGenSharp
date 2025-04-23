@@ -5,7 +5,7 @@ using Veldrid;
 
 namespace McmodIconGenSharp.RenderingInfos;
 
-public record struct VertexInfo(Vector3 Position, Vector3 Normal, Vector2 TexCoord, uint TextureIndex)
+public readonly record struct VertexInfo(Vector3 Position, Vector3 Normal, Vector2 TexCoord, uint TextureIndex)
 {
     // public static readonly uint ByteSize = (uint)Unsafe.SizeOf<VertexInfo>();
     public const uint ByteSize = 36;

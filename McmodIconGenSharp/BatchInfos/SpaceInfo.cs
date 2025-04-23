@@ -5,10 +5,11 @@ using Veldrid;
 
 namespace McmodIconGenSharp.BatchInfos;
 
-public record SpaceInfo(Transforms Transforms, LightInfos LightInfos);
+[StructLayout(LayoutKind.Sequential)]
+public readonly record struct SpaceInfo(Transforms Transforms, LightInfos LightInfos);
 
 [StructLayout(LayoutKind.Sequential)]
-public record struct Transforms(Matrix4x4 ModelTransform, Matrix4x4 ViewTransform, Matrix4x4 ProjectionTransform)
+public readonly record struct Transforms(Matrix4x4 ModelTransform, Matrix4x4 ViewTransform, Matrix4x4 ProjectionTransform)
 {
     internal const uint ByteSize = 3 * 16 * 4;
 
@@ -20,7 +21,7 @@ public record struct Transforms(Matrix4x4 ModelTransform, Matrix4x4 ViewTransfor
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public record struct LightInfos(Vector4 LightDirection, Vector4 LightColor, Vector4 AmbientLightColor)
+public readonly record struct LightInfos(Vector4 LightDirection, Vector4 LightColor, Vector4 AmbientLightColor)
 {
     internal const uint ByteSize = 3 * 4 * 4;
 

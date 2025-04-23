@@ -1,3 +1,3 @@
 ﻿namespace McmodIconGenSharp.BatchInfos;
 
-public record TargetInfo(int Width, int Height);
+public sealed record TargetInfo(uint Width, uint Height);

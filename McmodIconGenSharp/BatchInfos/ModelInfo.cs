@@ -10,7 +10,26 @@ namespace McmodIconGenSharp.BatchInfos;
 
 // I apologize for the tight logic and lack of abstraction that made the code difficult to read.
 
-public record ModelInfo(ImmutableArray<CubeInfo> Cubes);
+public sealed record ModelInfo(ImmutableArray<CubeInfo> Cubes)
+{
+    private ImmutableArray<VertexInfo>? _vertexCache;
+    private ImmutableArray<ushort>? _indicesCache;
+
+    internal ReadOnlySpan<VertexInfo> GetVertexes()
+    {
+        _vertexCache ??= Cubes.SelectMany(c => c.GetVertexes()).ToImmutableArray();
+        return _vertexCache.Value.AsSpan();
+    }
+
+    internal ReadOnlySpan<ushort> GetIndices()
+    {
+        _indicesCache ??= Cubes.SelectMany((_, i) => CubeInfo.GetIndices((ushort)i)).ToImmutableArray();
+        return _indicesCache.Value.AsSpan();
+    }
+
+    internal uint CubeCount => (uint)Cubes.Length;
+    internal uint IndexCount => CubeCount * 6 * 6;
+}
 
 public record CubeInfo(Vector3 Size, Matrix4x4 Transform, Faces<Vector4> UVs, Faces<byte> TextureIndexes)
 {

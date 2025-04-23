@@ -1,33 +1,24 @@
-﻿using McmodIconGenSharp.BatchInfos;
+﻿using System.Diagnostics.CodeAnalysis;
+
+using McmodIconGenSharp.BatchInfos;
 
 using Veldrid;
 
 namespace McmodIconGenSharp.Rendering;
 
-public class RenderBatch : IDisposable
+public sealed class RenderBatch(MigEnvironment environment, ModelInfo modelInfo, SpaceInfo spaceInfo, TargetInfo targetInfo)
 {
-    #region Init&Cleanup
+    #region Properties
 
-    internal RenderBatch(MigEnvironment environment, ModelInfo modelInfo, SpaceInfo spaceInfo, TargetInfo targetInfo)
-    {
-        Environment = environment;
-        var factory = Environment.GraphicsDevice.ResourceFactory;
-    }
+    public MigEnvironment Environment { get; } = environment;
+    public ModelInfo ModelInfo { get; } = modelInfo;
+    public SpaceInfo SpaceInfo { get; } = spaceInfo;
+    public TargetInfo TargetInfo { get; } = targetInfo;
 
-    public bool Disposed { get; private set; } = false;
-
-    public void Dispose()
-    {
-        if (Disposed) return;
-        Disposed = true;
-    }
-
-    #endregion
-
-
-    #region Resources
-
-    public MigEnvironment Environment { get; }
+    private (Texture color, Texture staging, Framebuffer buf)? RenderTarget => field ??= Environment.GetFramebuffer(TargetInfo.Width, TargetInfo.Height);
+    internal Texture TargetTex => RenderTarget!.Value.color;
+    internal Texture StagingTex => RenderTarget!.Value.staging;
+    internal Framebuffer TargetBuf => RenderTarget!.Value.buf;
 
     #endregion
 }
