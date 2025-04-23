@@ -1,6 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-
-using McmodIconGenSharp.BatchInfos;
+﻿using McmodIconGenSharp.BatchInfos;
 
 using Veldrid;
 
@@ -19,6 +17,16 @@ public sealed class RenderBatch(MigEnvironment environment, ModelInfo modelInfo,
     internal Texture TargetTex => RenderTarget!.Value.color;
     internal Texture StagingTex => RenderTarget!.Value.staging;
     internal Framebuffer TargetBuf => RenderTarget!.Value.buf;
+
+    #endregion
+
+
+    #region Public Methods
+
+    public void Render()
+    {
+
+    }
 
     #endregion
 }

@@ -22,6 +22,7 @@ public sealed class MigEnvironment : IDisposable
     private const uint VertexBufferByteSize = CubeInfo.MaxCubeAmount * 24 * VertexInfo.ByteSize; // max * 3 * 8 * size of vertex
     private const uint IndexBufferByteSize = CubeInfo.MaxCubeAmount * 36 * 2;                    // max * 4 * 6 * size of ushort
 
+    private const int ColorPixelByteSize = 4;
     private const PixelFormat ColorFormat = PixelFormat.R8_G8_B8_A8_UInt;
     private const PixelFormat DepthFormat = PixelFormat.D32_Float_S8_UInt;
     private const TextureSampleCount SampleCount = TextureSampleCount.Count1;
@@ -31,7 +32,7 @@ public sealed class MigEnvironment : IDisposable
 
     #region Init&Cleanup
 
-    public MigEnvironment(uint maxOutPixels = 144 * 144)
+    public MigEnvironment()
     {
         GraphicsDevice = GraphicsDevice.CreateVulkan(
             new GraphicsDeviceOptions
@@ -132,6 +133,8 @@ public sealed class MigEnvironment : IDisposable
         _placeHolderTextureView = factory.CreateTextureView(_placeHolderTexture);
         GraphicsDevice.UpdateTexture(_placeHolderTexture, stackalloc uint[] { 0xff00ffff, 0x000000ff, 0xff00ffff, 0x000000ff },
                                      0, 0, 0, 2, 2, 1, 0, 0);
+
+        _readoutStream = new MemoryStream();
     }
 
     public bool Disposed { get; private set; } = false;
@@ -140,6 +143,8 @@ public sealed class MigEnvironment : IDisposable
     {
         if (Disposed) return;
         Disposed = true;
+
+        _readoutStream.Dispose();
 
         _placeHolderTextureView.Dispose();
         _placeHolderTexture.Dispose();
@@ -197,6 +202,7 @@ public sealed class MigEnvironment : IDisposable
 
     private readonly Texture _placeHolderTexture;
     private readonly TextureView _placeHolderTextureView;
+    private readonly MemoryStream _readoutStream;
 
     internal BorrowRes<TextureView> GetTexture(uint width, uint height, ReadOnlySpan<byte> rgba)
     {
@@ -321,7 +327,7 @@ public sealed class MigEnvironment : IDisposable
         }
     }
 
-    internal void Render(RenderBatch batch, ReadOnlySpan<TextureView> textures)
+    internal ReadOnlySpan<byte> Render(RenderBatch batch, ReadOnlySpan<TextureView> textures)
     {
         using var texResSet = GetTexResSet(textures);
 
@@ -346,6 +352,30 @@ public sealed class MigEnvironment : IDisposable
         _commandList.End();
         GraphicsDevice.SubmitCommands(_commandList);
         GraphicsDevice.WaitForIdle();
+
+        var mapped = GraphicsDevice.Map(batch.StagingTex, MapMode.Read);
+        Stream data;
+        unsafe { data = new UnmanagedMemoryStream((byte*)mapped.Data, mapped.SizeInBytes); }
+
+        try
+        {
+            _readoutStream.SetLength(0);
+            _readoutStream.Position = 0;
+
+            for (int y = 0; y < batch.StagingTex.Height; y++)
+            {
+                data.Position = y * mapped.RowPitch;
+                data.CopyTo(_readoutStream, (int)batch.StagingTex.Width * ColorPixelByteSize);
+            }
+        }
+        catch (Exception e) { Console.Error.WriteLine($"Error while reading rendered image: {e.Message}"); }
+        finally
+        {
+            data.Dispose();
+            GraphicsDevice.Unmap(batch.StagingTex);
+        }
+
+        return _readoutStream.GetBuffer().AsSpan(0, (int)_readoutStream.Length);
     }
 
     #endregion
