@@ -23,4 +23,8 @@
         <EmbeddedResource Include="Resources\Shaders\*.glsl"/>
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="TransformUtils\" />
+    </ItemGroup>
+
 </Project>

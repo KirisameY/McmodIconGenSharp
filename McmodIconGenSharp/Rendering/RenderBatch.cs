@@ -1,4 +1,6 @@
-﻿using McmodIconGenSharp.BatchInfos;
+﻿using KirisameLib.Extensions;
+
+using McmodIconGenSharp.BatchInfos;
 
 using Veldrid;
 
@@ -23,9 +25,15 @@ public sealed class RenderBatch(MigEnvironment environment, ModelInfo modelInfo,
 
     #region Public Methods
 
-    public void Render()
+    /// <remarks>Note that return bytes should be used or copied before next any another render of same environment</remarks>
+    public ReadOnlySpan<byte> Render(TextureInfo[] textures)
     {
+        var bTexViews = textures.Select(t => Environment.GetTexture(t.Width, t.Height, t.Rgba.AsSpan())).ToArray();
+        var texViews = bTexViews.Select(t => t.Value).ToArray();
+        var result = Environment.Render(this, texViews);
 
+        bTexViews.ForEach(t => t.Dispose());
+        return result;
     }
 
     #endregion

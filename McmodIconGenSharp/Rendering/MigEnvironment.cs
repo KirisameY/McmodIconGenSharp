@@ -206,6 +206,8 @@ public sealed class MigEnvironment : IDisposable
 
     internal BorrowRes<TextureView> GetTexture(uint width, uint height, ReadOnlySpan<byte> rgba)
     {
+        ObjectDisposedException.ThrowIf(Disposed, this);
+
         if (!_texturesCache.TryGetValue((width, height), out var textureBag))
             _texturesCache[(width, height)] = textureBag = new();
 
@@ -232,18 +234,18 @@ public sealed class MigEnvironment : IDisposable
         return new(tex.view, () => textureBag.Add(tex));
     }
 
-    private BorrowRes<ResourceSet> GetTexResSet(ReadOnlySpan<TextureView> textures)
+    private BorrowRes<ResourceSet> GetTexResSet(IList<TextureView> textures)
     {
-        if (textures.Length == 1 && _singleTexResSetsCache.TryGetValue(textures[0], out var result))
+        if (textures.Count == 1 && _singleTexResSetsCache.TryGetValue(textures[0], out var result))
             return new(result, () => { });
 
         var texs = new TextureView[6];
         for (int i = 0; i < 6; i++)
         {
-            texs[i] = i < textures.Length ? textures[i] : _placeHolderTextureView;
+            texs[i] = i < textures.Count ? textures[i] : _placeHolderTextureView;
         }
         result = GraphicsDevice.ResourceFactory.CreateResourceSet(new ResourceSetDescription(_texResLayout, [..texs, _sampler]));
-        if (textures.Length == 1)
+        if (textures.Count == 1)
         {
             _singleTexResSetsCache[textures[0]] = result;
             return new(result, () => { });
@@ -254,6 +256,8 @@ public sealed class MigEnvironment : IDisposable
 
     internal (Texture color, Texture staging, Framebuffer buf) GetFramebuffer(uint width, uint height)
     {
+        ObjectDisposedException.ThrowIf(Disposed, this);
+
         if (!_outputBuffers.TryGetValue((width, height), out var frame))
         {
             var colorTexDescription = new TextureDescription
@@ -303,11 +307,11 @@ public sealed class MigEnvironment : IDisposable
     public ModelInfo? CurrentModel { get; private set; }
     public SpaceInfo? CurrentSpace { get; private set; }
 
-    public RenderBatch CreateRenderBatch()
+    public RenderBatchBuilder BuildRenderBatch()
     {
         ObjectDisposedException.ThrowIf(Disposed, this);
 
-        throw new NotImplementedException();
+        return new RenderBatchBuilder(this);
     }
 
     private void SwitchToBatch(RenderBatch batch)
@@ -327,8 +331,10 @@ public sealed class MigEnvironment : IDisposable
         }
     }
 
-    internal ReadOnlySpan<byte> Render(RenderBatch batch, ReadOnlySpan<TextureView> textures)
+    internal ReadOnlySpan<byte> Render(RenderBatch batch, IList<TextureView> textures)
     {
+        ObjectDisposedException.ThrowIf(Disposed, this);
+
         using var texResSet = GetTexResSet(textures);
 
         _commandList.Begin();
@@ -340,7 +346,7 @@ public sealed class MigEnvironment : IDisposable
         _commandList.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
         _commandList.SetGraphicsResourceSet(0, _spaceResourceSet);
         _commandList.SetGraphicsResourceSet(1, texResSet.Value);
-        _commandList.SetViewport(0, new Viewport(0, 0, 16, 16, 0, 1));
+        _commandList.SetViewport(0, new Viewport(0, 0, batch.TargetInfo.Width, batch.TargetInfo.Height, 0, 1));
         _commandList.SetFramebuffer(batch.TargetBuf);
 
         _commandList.ClearColorTarget(0, new(0, 0, 0, 0));
